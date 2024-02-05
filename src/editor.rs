@@ -1,7 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 use crate::{FileBuffer, Position, Terminal};
-use crossterm::{event::KeyCode, style::Stylize};
+use crossterm::{event::{KeyCode, KeyEventKind}, style::Stylize};
 use ropey::RopeSlice;
 use std::{cmp, env, fmt};
 
@@ -209,6 +209,9 @@ impl Editor {
     /// Returns an error if the `Terminal` cannot read the event.
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let key_event = Terminal::read_event()?;
+        if let KeyEventKind::Release = key_event.kind {
+            return Ok(());
+        }
         match key_event.code {
             KeyCode::Esc => {
                 self.mode = Mode::Normal;
