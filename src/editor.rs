@@ -1,7 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 use crate::{FileBuffer, Position, Terminal};
-use crossterm::event::KeyCode;
+use crossterm::{event::KeyCode, style::Stylize};
 use ropey::RopeSlice;
 use std::{cmp, env, fmt};
 
@@ -119,6 +119,16 @@ impl Editor {
             println!("Goodbye.\r");
         } else {
             self.draw_rows();
+            self.draw_cursors();
+            let height = match self.mode {
+                Mode::Command => self.terminal.size().height.saturating_sub(1),
+                _ => self.terminal.size().height,
+            };
+            Terminal::cursor_position(&Position {
+                x: 0,
+                x_preferred: 0,
+                y: height as usize,
+            });
             self.draw_status_bar();
             if let Mode::Command = self.mode {
                 self.draw_command_line();
@@ -132,7 +142,10 @@ impl Editor {
                 Terminal::cursor_position(&file_buffer.get_primary_selection_cursor_pos());
             }
         }
-        Terminal::cursor_show();
+        match self.mode {
+            Mode::Insert | Mode::Command => Terminal::cursor_show(),
+            _ => (),
+        }
         Terminal::flush()
     }
 
@@ -316,8 +329,11 @@ impl Editor {
         status.truncate(width);
         Terminal::clear_current_line();
         match self.mode {
-            Mode::Command => println!(" {} {status}\r", self.mode),
-            _ => print!(" {} {status}", self.mode),
+            Mode::Command => println!(
+                "{} {status}\r",
+                format!(" {} ", self.mode).black().on_white(),
+            ),
+            _ => print!("{} {status}", format!(" {} ", self.mode).black().on_white()),
         }
     }
 
@@ -326,6 +342,27 @@ impl Editor {
     fn draw_command_line(&self) {
         Terminal::clear_current_line();
         print!(":{}", self.command_line.command);
+    }
+
+    /// Takes itself.
+    /// Draws all box cursors.
+    fn draw_cursors(&self) {
+        let file_buffer = &self.file_buffers[self.current_file_buffer_idx];
+        let file_buffer_selections = &file_buffer.selections;
+        for i in 0..file_buffer_selections.len() {
+            if i == file_buffer.primary_selection_idx {
+                if let Mode::Insert = self.mode {
+                    continue;
+                }
+            }
+            let cursor = file_buffer
+                .get_screen_cursor_pos(&file_buffer_selections[i].cursor, self.terminal.size());
+            if let Some(cursor) = cursor {
+                let char = file_buffer.get_char_under_cursor(&file_buffer_selections[i].cursor);
+                Terminal::cursor_position(&cursor);
+                print!("{}", char.black().on_white());
+            }
+        }
     }
 
     /// Takes itself.

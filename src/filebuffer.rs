@@ -267,6 +267,57 @@ impl FileBuffer {
         }
     }
 
+    /// Takes itself and a position.
+    /// Returns the position of the cursor on the screen.
+    ///
+    /// # Errors
+    ///
+    /// Returns `None` if the cursor is off-screen.
+    #[must_use]
+    pub fn get_screen_cursor_pos(&self, cursor: &Position, size: &Size) -> Option<Position> {
+        let Position {
+            x,
+            x_preferred: _,
+            y,
+        } = cursor;
+        if x < &self.offset.x
+            || x >= &self.offset.x.saturating_add(size.width as usize)
+            || y < &self.offset.y
+            || y >= &self.offset.y.saturating_add(size.height as usize)
+        {
+            None
+        } else {
+            let x = x.saturating_sub(self.offset.x);
+            let y = y.saturating_sub(self.offset.y);
+            Some(Position {
+                x,
+                x_preferred: 0,
+                y,
+            })
+        }
+    }
+
+    /// Takes itself and a `Position`.
+    /// Returns the char under the cursor.
+    #[must_use]
+    pub fn get_char_under_cursor(&self, cursor: &Position) -> char {
+        let line = self.row(cursor.y);
+        if let Some(line) = line {
+            let char = line.get_char(cursor.x);
+            if let Some(char) = char {
+                if char == '\n' {
+                    ' '
+                } else {
+                    char
+                }
+            } else {
+                ' '
+            }
+        } else {
+            ' '
+        }
+    }
+
     /// Takes itself and the terminal size.
     /// Scrolls the viewport so that the primary selection
     /// is in view.
