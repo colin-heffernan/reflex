@@ -108,7 +108,14 @@ impl Editor {
         Terminal::cursor_hide();
         Terminal::cursor_position(&Position::default());
         if self.should_quit {
+            Terminal::cursor_show();
             Terminal::clear_screen();
+            if self.terminal.alt_screen {
+                Terminal::exit_alt_screen()?;
+            }
+            if self.terminal.raw_mode {
+                Terminal::exit_raw_mode()?;
+            }
             println!("Goodbye.\r");
         } else {
             self.draw_rows();
